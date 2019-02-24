@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "module": "esnext",
+        "jsx": "preserve",
+        "allowJs": true,
+        "moduleResolution": "node",
+        "allowSyntheticDefaultImports": true,
+        "noUnusedLocals": true,
+        "resolveJsonModule": true,
+        "noUnusedParameters": true,
+        "removeComments": false,
+        "preserveConstEnums": true,
+        "sourceMap": true,
+        "skipLibCheck": true,
+        "baseUrl": "types",
+        "typeRoots": ["types", "./node_modules/@types"],
+        "lib": ["dom", "es2015", "es2016"],
+        "outDir": "./lib"
+    },
+    "include": ["src"],
+    "exclude": ["node_modules", "**/__tests__/*"]
+}
