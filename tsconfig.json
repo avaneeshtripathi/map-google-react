@@ -1,24 +1,13 @@
 {
     "compilerOptions": {
-        "target": "esnext",
-        "module": "esnext",
-        "allowJs": true,
-        "jsx": "preserve",
-        "moduleResolution": "node",
-        "allowSyntheticDefaultImports": true,
-        "noUnusedLocals": true,
-        "resolveJsonModule": true,
-        "noUnusedParameters": true,
-        "removeComments": false,
-        "preserveConstEnums": true,
-        "sourceMap": true,
-        "skipLibCheck": true,
-        "baseUrl": "types",
-        "typeRoots": ["types", "./node_modules/@types"],
-        "types": ["googlemaps", "node"],
-        "lib": ["dom", "es2015", "es2016"],
-        "outDir": "./lib"
+        "target": "es5",
+        "module": "commonjs",
+        "jsx": "react",
+        "lib": ["es2017", "es7", "es6", "dom"],
+        "declaration": true,
+        "outDir": "lib",
+        "strict": true,
+        "esModuleInterop": true
     },
-    "include": ["src"],
-    "exclude": ["node_modules", "**/__tests__/*"]
+    "exclude": ["node_modules", "lib"]
 }
