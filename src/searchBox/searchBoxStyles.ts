@@ -6,7 +6,7 @@ const searchBoxCtr = {
 };
 
 const searchInput = {
-    boxSizing: 'border-box',
+    boxSizing: 'border-box' as 'border-box',
     border: '1px solid transparent',
     width: '100%',
     marginTop: '10px',

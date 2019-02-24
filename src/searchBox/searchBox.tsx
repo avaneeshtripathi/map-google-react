@@ -9,16 +9,24 @@ import {
 } from './searchBoxStyles';
 
 type Props = {
-    onMount: () => void;
+    onMount?: () => void;
     elementId: string;
-    onPlacesChanged: (place: object) => void;
+    onPlacesChanged: (place: google.maps.places.AutocompletePrediction) => void;
     placeholder?: string;
     searchOptions?: object;
+    inputStyle?: object;
+    suggestionStyle?: object;
 };
 
 type State = {
     inputValue: string;
     suggestions: object[];
+};
+
+type CustomAutocomplete = google.maps.places.AutocompletePrediction & {
+    placeId?: string;
+    active?: boolean;
+    description?: string;
 };
 
 class SearchBox extends React.Component<Props, State> {
@@ -28,13 +36,13 @@ class SearchBox extends React.Component<Props, State> {
     };
 
     isUnmounted = false;
-    autocompleteService = null;
-    autocompleteOK = null;
+    autocompleteService?: google.maps.places.AutocompleteService;
+    autocompleteOK?: string;
 
     componentDidMount() {
         this.autocompleteService = new window.google.maps.places.AutocompleteService();
         this.autocompleteOK = window.google.maps.places.PlacesServiceStatus.OK;
-        this.props.onMount();
+        if (this.props.onMount) this.props.onMount();
     }
 
     componentWillUnmount() {
@@ -65,6 +73,7 @@ class SearchBox extends React.Component<Props, State> {
                     }),
                 };
             }
+
             this.autocompleteService.getPlacePredictions(
                 searchOptions,
                 this.autocompleteCallback,
@@ -72,7 +81,10 @@ class SearchBox extends React.Component<Props, State> {
         }
     };
 
-    autocompleteCallback = (suggestions: object[], status: any) => {
+    autocompleteCallback = (
+        suggestions: google.maps.places.AutocompletePrediction[],
+        status: any,
+    ) => {
         if (status !== this.autocompleteOK) {
             this.clearSuggestions();
             return;
@@ -88,7 +100,7 @@ class SearchBox extends React.Component<Props, State> {
 
     clearSuggestions = () => this.setState({ suggestions: [] });
 
-    handleInputKeyDown = event => {
+    handleInputKeyDown = (event: React.SyntheticEvent) => {
         switch (event.key) {
             case 'Enter':
                 event.preventDefault();
@@ -141,7 +153,7 @@ class SearchBox extends React.Component<Props, State> {
         );
     };
 
-    selectActiveAtIndex = selected =>
+    selectActiveAtIndex = (selected: number) =>
         this.setState(({ suggestions }) => ({
             suggestions: suggestions.map((suggestion, index) => ({
                 ...suggestion,
@@ -153,18 +165,22 @@ class SearchBox extends React.Component<Props, State> {
     getActiveSuggestionIndex = () =>
         this.state.suggestions.findIndex(suggestion => suggestion.active);
 
-    onSuggestionClick = suggestion => () => {
+    onSuggestionClick = (suggestion: CustomAutocomplete) => () =>
         this.handleSelect(suggestion);
-    };
 
-    handleSelect = place => {
+    handleSelect = (place?: CustomAutocomplete) => {
         if (!place) return;
         this.setState({ suggestions: [], inputValue: place.description });
         this.props.onPlacesChanged(place);
     };
 
     render() {
-        const { elementId, placeholder } = this.props;
+        const {
+            elementId,
+            placeholder,
+            inputStyle = {},
+            suggestionStyle = {},
+        } = this.props;
         const { suggestions, inputValue } = this.state;
         return (
             <div style={searchBoxCtr}>
@@ -172,7 +188,7 @@ class SearchBox extends React.Component<Props, State> {
                     autoComplete="off"
                     id={elementId}
                     placeholder={placeholder || 'Search location'}
-                    style={searchInput}
+                    style={{ ...searchInput, ...inputStyle }}
                     value={inputValue}
                     onChange={this.handleSearch}
                     onKeyDown={this.handleInputKeyDown}
@@ -181,19 +197,22 @@ class SearchBox extends React.Component<Props, State> {
                 />
                 {suggestions && suggestions.length ? (
                     <div style={suggestionsCtr}>
-                        {suggestions.map((suggestion, index) => (
-                            <div
-                                key={index}
-                                onClick={this.onSuggestionClick(suggestion)}
-                                style={{
-                                    ...suggestionItem,
-                                    ...(suggestion.active && { ...active }),
-                                    ':hover': hover,
-                                }}
-                            >
-                                <span>{suggestion.description}</span>
-                            </div>
-                        ))}
+                        {suggestions.map(
+                            (suggestion: CustomAutocomplete, index) => (
+                                <div
+                                    key={index}
+                                    onClick={this.onSuggestionClick(suggestion)}
+                                    style={{
+                                        ...suggestionItem,
+                                        ...(suggestion.active && { ...active }),
+                                        '&:hover': hover,
+                                        ...suggestionStyle,
+                                    }}
+                                >
+                                    <span>{suggestion.description}</span>
+                                </div>
+                            ),
+                        )}
                     </div>
                 ) : null}
             </div>

@@ -1,5 +1,5 @@
 const ctr = {
-    position: 'relative',
+    position: 'relative' as 'relative',
     height: '100%',
 };
 

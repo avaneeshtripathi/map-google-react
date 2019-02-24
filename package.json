@@ -7,10 +7,12 @@
         "type": "git",
         "url": "git+https://github.com/avaneeshtripathi/map-google-react.git"
     },
+    "license": "UNLICENSED",
     "scripts": {
         "build": "rm -rf lib && tsc"
     },
     "dependencies": {
+        "googlemaps": "^1.12.0",
         "react": "^16.8.3",
         "react-dom": "^16.8.3",
         "scriptjs": "^2.5.9"
