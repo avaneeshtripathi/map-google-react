@@ -1,6 +1,19 @@
 import React from 'react';
 import SearchBox from '../searchBox/searchBox';
 import { ctr, mapCtr } from './googleMapStyles';
+import {
+    GoogleMapProps,
+    GoogleMapState,
+    MapType,
+    PlacesServiceType,
+    PlaceResultType,
+    CustomAutocompleteType,
+    MarkerType,
+    GeocoderType,
+    InfoWindowType,
+    LatLngType,
+    GeocoderResultType,
+} from '../types';
 
 const INFO_WINDOW = `
     <div style="display: flex; flex-direction: column; font-size: 12px">
@@ -9,40 +22,7 @@ const INFO_WINDOW = `
     </div>
 `;
 
-type Props = {
-    googleMapUrl: string;
-    mapElementId: string;
-    searchElementId: string;
-    defaultCenter: {
-        lat: number;
-        lng: number;
-    };
-    defaultZoom: number;
-    onPlacesChanged: () => void;
-    placesOptions?: string[];
-    markerIconUrl?: string;
-    searchPlaceholder?: string;
-    errorHandler?: () => void;
-    onMapLoaded?: () => void;
-    onSearchBoxMounted?: () => void;
-    searchOptions?: object;
-    inputStyle?: object;
-    suggestionStyle?: object;
-};
-
-type State = {
-    scriptLoaded: boolean;
-    center: object;
-    marker: { position: { lat: number; lng: number } } | null;
-};
-
-type CustomAutocomplete = google.maps.places.AutocompletePrediction & {
-    placeId?: string;
-    active?: boolean;
-    description?: string;
-};
-
-class GoogleMap extends React.Component<Props, State> {
+class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
     state = {
         scriptLoaded: false,
         center: this.props.defaultCenter,
@@ -51,15 +31,15 @@ class GoogleMap extends React.Component<Props, State> {
             : null,
     };
 
-    isUnmounted = false;
-    searchInput: JSX.Element | null = null;
+    isUnmounted: boolean = false;
+    searchInput?: JSX.Element;
 
     // INITIALISATION
-    map?: google.maps.Map;
-    placesService?: google.maps.places.PlacesService;
-    markerService?: google.maps.Marker;
-    geocoderService?: google.maps.Geocoder;
-    infoWindow?: google.maps.InfoWindow;
+    map?: MapType;
+    placesService?: PlacesServiceType;
+    markerService?: MarkerType;
+    geocoderService?: GeocoderType;
+    infoWindow?: InfoWindowType;
 
     initialise = (cb: () => void) => {
         const { defaultZoom, mapElementId } = this.props;
@@ -116,13 +96,13 @@ class GoogleMap extends React.Component<Props, State> {
         this.isUnmounted = true;
     }
 
-    handleMapClick = ({ latLng }: { latLng: google.maps.LatLng }) => {
+    handleMapClick = ({ latLng }: { latLng: LatLngType }) => {
         if (!this.geocoderService) return;
 
         const request = { location: { lat: latLng.lat(), lng: latLng.lng() } };
         this.geocoderService.geocode(
             request,
-            (result: google.maps.GeocoderResult[]) => {
+            (result: GeocoderResultType[]) => {
                 const position = result[0].geometry.location;
                 const nextMarker = position ? { position } : {};
                 const nextCenter = nextMarker.position
@@ -135,6 +115,7 @@ class GoogleMap extends React.Component<Props, State> {
                 const secondary_text = rest.join(' - ');
 
                 this.setState(
+                    // @ts-ignore
                     { center: nextCenter, marker: nextMarker },
                     () => {
                         if (!position) {
@@ -144,9 +125,11 @@ class GoogleMap extends React.Component<Props, State> {
                         }
 
                         if (this.searchInput) {
-                            this.searchInput.handleInputChange(
-                                result[0].formatted_address,
-                            );
+                            // @ts-ignore
+                            this.searchInput.handleState({
+                                inputValue: result[0].formatted_address,
+                                suggestions: [],
+                            });
                         }
 
                         const place = {
@@ -157,6 +140,7 @@ class GoogleMap extends React.Component<Props, State> {
                         };
                         this.setMarker(
                             nextCenter,
+                            // @ts-ignore
                             place,
                             this.props.onPlacesChanged,
                         );
@@ -166,46 +150,39 @@ class GoogleMap extends React.Component<Props, State> {
         );
     };
 
-    onPlacesChanged = (place: CustomAutocomplete) => {
+    onPlacesChanged = (place: CustomAutocompleteType) => {
         if (!this.placesService) return;
 
         const request = { placeId: place.placeId };
 
         // IF FIELDS ARE PROVIDED TO FILTER DETAILS DATA
         if (this.props.placesOptions)
+            // @ts-ignore
             request['fields'] = this.props.placesOptions;
 
-        this.placesService.getDetails(
-            request,
-            (result: google.maps.places.PlaceResult) => {
-                const position = result.geometry.location;
-                const nextMarker = position ? { position } : {};
-                const nextCenter = nextMarker.position
-                    ? nextMarker.position
-                    : this.state.center;
+        // @ts-ignore
+        this.placesService.getDetails(request, (result: PlaceResultType) => {
+            const position = result.geometry.location;
+            const nextMarker = position ? { position } : {};
+            const nextCenter = nextMarker.position
+                ? nextMarker.position
+                : this.state.center;
 
-                this.setState(
-                    { center: nextCenter, marker: nextMarker },
-                    () => {
-                        if (!position) {
-                            if (this.props.errorHandler)
-                                this.props.errorHandler();
-                            return;
-                        }
-                        this.setMarker(
-                            nextCenter,
-                            place,
-                            this.props.onPlacesChanged,
-                        );
-                    },
-                );
-            },
-        );
+            // @ts-ignore
+            this.setState({ center: nextCenter, marker: nextMarker }, () => {
+                if (!position) {
+                    if (this.props.errorHandler) this.props.errorHandler();
+                    return;
+                }
+                // @ts-ignore
+                this.setMarker(nextCenter, place, this.props.onPlacesChanged);
+            });
+        });
     };
 
     setMarker = (
         nextCenter: object,
-        place?: CustomAutocomplete,
+        place?: CustomAutocompleteType,
         cb?: () => void,
     ) => {
         // RESET MARKER IF ALREADY PRESENT
@@ -213,18 +190,22 @@ class GoogleMap extends React.Component<Props, State> {
             this.markerService.setMap(null);
 
         const center = new google.maps.LatLng(
+            // @ts-ignore
             nextCenter.lat(),
+            // @ts-ignore
             nextCenter.lng(),
         );
 
         const markerObj = { position: center, map: this.map };
         if (this.props.markerIconUrl)
+            // @ts-ignore
             markerObj['icon'] = this.props.markerIconUrl;
 
         this.markerService = new google.maps.Marker(markerObj);
 
         // CREATE INFO WINDOW FOR THE PIN LOCATION
         const {
+            // @ts-ignore
             structured_formatting: { main_text, secondary_text },
         } = place;
         const contentString = INFO_WINDOW.replace(
@@ -259,6 +240,7 @@ class GoogleMap extends React.Component<Props, State> {
                 <div style={mapCtr} id={mapElementId} />
                 {scriptLoaded && searchElementId ? (
                     <SearchBox
+                        // @ts-ignore
                         ref={ref => (this.searchInput = ref)}
                         placeholder={searchPlaceholder}
                         searchOptions={searchOptions}

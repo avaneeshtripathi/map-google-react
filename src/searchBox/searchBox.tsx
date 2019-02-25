@@ -7,40 +7,28 @@ import {
     active,
     hover,
 } from './searchBoxStyles';
+import {
+    SearchBoxProps,
+    SearchBoxState,
+    AutocompleteServiceType,
+    CustomAutocompleteType,
+    AutocompletePredictionType,
+} from '../types';
 
-type Props = {
-    onMount?: () => void;
-    elementId: string;
-    onPlacesChanged: (place: google.maps.places.AutocompletePrediction) => void;
-    placeholder?: string;
-    searchOptions?: object;
-    inputStyle?: object;
-    suggestionStyle?: object;
-};
-
-type State = {
-    inputValue: string;
-    suggestions: object[];
-};
-
-type CustomAutocomplete = google.maps.places.AutocompletePrediction & {
-    placeId?: string;
-    active?: boolean;
-    description?: string;
-};
-
-class SearchBox extends React.Component<Props, State> {
+class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
     state = {
         suggestions: [],
         inputValue: '',
     };
 
-    isUnmounted = false;
-    autocompleteService?: google.maps.places.AutocompleteService;
+    isUnmounted: boolean = false;
+    autocompleteService?: AutocompleteServiceType;
     autocompleteOK?: string;
 
     componentDidMount() {
+        // @ts-ignore
         this.autocompleteService = new window.google.maps.places.AutocompleteService();
+        // @ts-ignore
         this.autocompleteOK = window.google.maps.places.PlacesServiceStatus.OK;
         if (this.props.onMount) this.props.onMount();
     }
@@ -49,9 +37,10 @@ class SearchBox extends React.Component<Props, State> {
         this.isUnmounted = true;
     }
 
-    handleInputChange = (inputValue: string) => this.setState({ inputValue });
+    handleState = (state: object) => this.setState(state);
 
-    handleSearch = (e: React.SyntheticEvent) => {
+    handleSearch = (e: React.FormEvent<HTMLInputElement>) => {
+        // @ts-ignore
         const inputValue = e.target.value || '';
         this.setState(({ suggestions }) => ({
             inputValue,
@@ -60,6 +49,7 @@ class SearchBox extends React.Component<Props, State> {
         if (this.autocompleteService && inputValue) {
             let searchOptions = { input: inputValue };
             if (this.props.searchOptions) {
+                // @ts-ignore
                 const { location, ...rest } = this.props.searchOptions;
 
                 searchOptions = {
@@ -82,7 +72,7 @@ class SearchBox extends React.Component<Props, State> {
     };
 
     autocompleteCallback = (
-        suggestions: google.maps.places.AutocompletePrediction[],
+        suggestions: CustomAutocompleteType[],
         status: any,
     ) => {
         if (status !== this.autocompleteOK) {
@@ -100,7 +90,7 @@ class SearchBox extends React.Component<Props, State> {
 
     clearSuggestions = () => this.setState({ suggestions: [] });
 
-    handleInputKeyDown = (event: React.SyntheticEvent) => {
+    handleInputKeyDown = (event: KeyboardEvent) => {
         switch (event.key) {
             case 'Enter':
                 event.preventDefault();
@@ -124,6 +114,7 @@ class SearchBox extends React.Component<Props, State> {
         const activeSuggestionIndex = this.getActiveSuggestionIndex();
         const { inputValue, suggestions } = this.state;
         if (typeof activeSuggestionIndex === 'undefined') {
+            // @ts-ignore
             this.handleSelect({ description: inputValue });
         } else {
             this.handleSelect(suggestions[activeSuggestionIndex]);
@@ -163,12 +154,13 @@ class SearchBox extends React.Component<Props, State> {
         }));
 
     getActiveSuggestionIndex = () =>
+        // @ts-ignore
         this.state.suggestions.findIndex(suggestion => suggestion.active);
 
-    onSuggestionClick = (suggestion: CustomAutocomplete) => () =>
+    onSuggestionClick = (suggestion: CustomAutocompleteType) => () =>
         this.handleSelect(suggestion);
 
-    handleSelect = (place?: CustomAutocomplete) => {
+    handleSelect = (place?: CustomAutocompleteType) => {
         if (!place) return;
         this.setState({ suggestions: [], inputValue: place.description });
         this.props.onPlacesChanged(place);
@@ -191,6 +183,7 @@ class SearchBox extends React.Component<Props, State> {
                     style={{ ...searchInput, ...inputStyle }}
                     value={inputValue}
                     onChange={this.handleSearch}
+                    // @ts-ignore
                     onKeyDown={this.handleInputKeyDown}
                     onFocus={this.handleSearch}
                     type="text"
@@ -198,13 +191,14 @@ class SearchBox extends React.Component<Props, State> {
                 {suggestions && suggestions.length ? (
                     <div style={suggestionsCtr}>
                         {suggestions.map(
-                            (suggestion: CustomAutocomplete, index) => (
+                            (suggestion: CustomAutocompleteType, index) => (
                                 <div
                                     key={index}
                                     onClick={this.onSuggestionClick(suggestion)}
                                     style={{
                                         ...suggestionItem,
                                         ...(suggestion.active && { ...active }),
+                                        // @ts-ignore
                                         '&:hover': hover,
                                         ...suggestionStyle,
                                     }}

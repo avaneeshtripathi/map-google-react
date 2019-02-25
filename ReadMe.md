@@ -10,7 +10,7 @@
         searchOptions={{
             location: { lat: 25.2048493, lng: 55.2707828 },
             radius: 20000,
-        }} (Optional)
+        }} (Optional, For Location Biasing)
         placesOptions={['geometry']} (Optional)
         onPlacesChanged={() => {}} (Optional)
         errorHandler={() => {}} (Optional)
