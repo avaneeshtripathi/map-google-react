@@ -1,8 +1,8 @@
 {
-    "presets": ["@babel/env", "@babel/typescript"],
+    "presets": ["@babel/env", "@babel/typescript", "@babel/react"],
     "plugins": [
+        ["styled-jsx/babel", { "optimizeForSpeed": true }],
         "@babel/proposal-class-properties",
-        "@babel/proposal-object-rest-spread",
-        ["styled-jsx/babel", { "optimizeForSpeed": true }]
+        "@babel/proposal-object-rest-spread"
     ]
 }

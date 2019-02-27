@@ -1,8 +1,8 @@
 {
     "name": "map-google-react",
-    "version": "1.1.6",
+    "version": "1.1.7",
     "author": "Avaneesh Tripathi",
-    "main": "lib/index.js",
+    "main": "dist/app.bundle.js",
     "types": "lib/index.d.ts",
     "repository": {
         "type": "git",
@@ -10,7 +10,12 @@
     },
     "license": "MIT",
     "scripts": {
-        "build": "babel src --out-dir lib --extensions \".ts,.tsx\" --source-maps inline"
+        "type-check": "tsc --noEmit",
+        "type-check:watch": "yarn run type-check -- --watch",
+        "build": "yarn run build:types && yarn run build:js",
+        "build:types": "tsc --emitDeclarationOnly",
+        "build:js": "babel src --out-dir lib --extensions \".ts,.tsx\" --source-maps inline",
+        "bundle": "webpack"
     },
     "dependencies": {
         "googlemaps": "^1.12.0",
@@ -31,7 +36,10 @@
         "@types/react": "^16.8.5",
         "@types/react-dom": "^16.8.2",
         "@types/styled-jsx": "^2.2.8",
+        "babel-loader": "^8.0.5",
         "styled-jsx": "^3.2.1",
-        "typescript": "^3.3.3333"
+        "typescript": "^3.3.3333",
+        "webpack": "^4.29.5",
+        "webpack-cli": "^3.2.3"
     }
 }
