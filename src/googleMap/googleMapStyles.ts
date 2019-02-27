@@ -1,10 +1,32 @@
-const ctr = {
-    position: 'relative' as 'relative',
-    height: '100%',
-};
+import css from 'styled-jsx/css';
 
-const mapCtr = {
-    height: '100%',
-};
+const styles = css`
+    .ctr {
+        position: relative;
+        height: 100%;
+    }
+    .mapCtr {
+        height: 100%;
+    }
 
-export { ctr, mapCtr };
+    // RESET DEFAULT INFO WINDOW
+    :global(.gm-style-iw-t:before),
+    :global(.gm-style-iw-t:after) {
+        content: unset !important;
+    }
+    :global(.gm-style-iw) {
+        width: 160px !important;
+        border-radius: unset !important;
+        padding: 10px !important;
+        top: 4px !important;
+        overflow: unset !important;
+    }
+    :global(.gm-style-iw-d) {
+        overflow: unset !important;
+    }
+    :global(button.gm-ui-hover-effect) {
+        display: none !important;
+    }
+`;
+
+export default styles;

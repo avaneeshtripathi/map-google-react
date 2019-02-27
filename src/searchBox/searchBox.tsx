@@ -1,19 +1,15 @@
 import React from 'react';
-import {
-    searchBoxCtr,
-    searchInput,
-    suggestionsCtr,
-    suggestionItem,
-    active,
-    hover,
-} from './searchBoxStyles';
+import styles from './searchBoxStyles';
 import {
     SearchBoxProps,
     SearchBoxState,
+    PlacesServiceStatusType,
     AutocompleteServiceType,
     CustomAutocompleteType,
-    AutocompletePredictionType,
-} from '../types';
+} from '../types/googleMapTypes';
+
+const PIN_IMAGE_URL =
+    'https://maps.gstatic.com/mapfiles/api-3/images/spotlight-poi2_hdpi.png';
 
 class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
     state = {
@@ -21,26 +17,29 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
         inputValue: '',
     };
 
-    isUnmounted: boolean = false;
     autocompleteService?: AutocompleteServiceType;
-    autocompleteOK?: string;
+    autocompleteOK?: PlacesServiceStatusType;
+    isMounted: boolean = true;
 
     componentDidMount() {
-        // @ts-ignore
-        this.autocompleteService = new window.google.maps.places.AutocompleteService();
-        // @ts-ignore
-        this.autocompleteOK = window.google.maps.places.PlacesServiceStatus.OK;
+        this.autocompleteService = new google.maps.places.AutocompleteService();
+        this.autocompleteOK = google.maps.places.PlacesServiceStatus.OK;
         if (this.props.onMount) this.props.onMount();
     }
 
     componentWillUnmount() {
-        this.isUnmounted = true;
+        this.isMounted = false;
     }
 
-    handleState = (state: object) => this.setState(state);
+    handleState = (state: object) => {
+        if (!this.isMounted) return;
+
+        this.setState(state);
+    };
 
     handleSearch = (e: React.FormEvent<HTMLInputElement>) => {
-        // @ts-ignore
+        if (!this.isMounted) return;
+
         const inputValue = e.target.value || '';
         this.setState(({ suggestions }) => ({
             inputValue,
@@ -49,7 +48,6 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
         if (this.autocompleteService && inputValue) {
             let searchOptions = { input: inputValue };
             if (this.props.searchOptions) {
-                // @ts-ignore
                 const { location, ...rest } = this.props.searchOptions;
 
                 searchOptions = {
@@ -75,6 +73,8 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
         suggestions: CustomAutocompleteType[],
         status: any,
     ) => {
+        if (!this.isMounted) return;
+
         if (status !== this.autocompleteOK) {
             this.clearSuggestions();
             return;
@@ -88,7 +88,11 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
         });
     };
 
-    clearSuggestions = () => this.setState({ suggestions: [] });
+    clearSuggestions = () => {
+        if (!this.isMounted) return;
+
+        this.setState({ suggestions: [] });
+    };
 
     handleInputKeyDown = (event: KeyboardEvent) => {
         switch (event.key) {
@@ -114,7 +118,6 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
         const activeSuggestionIndex = this.getActiveSuggestionIndex();
         const { inputValue, suggestions } = this.state;
         if (typeof activeSuggestionIndex === 'undefined') {
-            // @ts-ignore
             this.handleSelect({ description: inputValue });
         } else {
             this.handleSelect(suggestions[activeSuggestionIndex]);
@@ -144,7 +147,9 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
         );
     };
 
-    selectActiveAtIndex = (selected: number) =>
+    selectActiveAtIndex = (selected: number) => {
+        if (!this.isMounted) return;
+
         this.setState(({ suggestions }) => ({
             suggestions: suggestions.map((suggestion, index) => ({
                 ...suggestion,
@@ -152,15 +157,17 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
             })),
             inputValue: suggestions[selected].description,
         }));
+    };
 
     getActiveSuggestionIndex = () =>
-        // @ts-ignore
         this.state.suggestions.findIndex(suggestion => suggestion.active);
 
     onSuggestionClick = (suggestion: CustomAutocompleteType) => () =>
         this.handleSelect(suggestion);
 
     handleSelect = (place?: CustomAutocompleteType) => {
+        if (!this.isMounted) return;
+
         if (!place) return;
         this.setState({ suggestions: [], inputValue: place.description });
         this.props.onPlacesChanged(place);
@@ -172,43 +179,46 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
             placeholder,
             inputStyle = {},
             suggestionStyle = {},
+            markerIconUrl,
         } = this.props;
         const { suggestions, inputValue } = this.state;
+
+        const pinIcon = markerIconUrl || PIN_IMAGE_URL;
+
         return (
-            <div style={searchBoxCtr}>
+            <div className="searchBoxCtr">
                 <input
                     autoComplete="off"
                     id={elementId}
                     placeholder={placeholder || 'Search location'}
-                    style={{ ...searchInput, ...inputStyle }}
+                    className="searchInput"
+                    style={inputStyle}
                     value={inputValue}
                     onChange={this.handleSearch}
-                    // @ts-ignore
                     onKeyDown={this.handleInputKeyDown}
                     onFocus={this.handleSearch}
                     type="text"
                 />
                 {suggestions && suggestions.length ? (
-                    <div style={suggestionsCtr}>
+                    <div className="suggestionsCtr">
                         {suggestions.map(
                             (suggestion: CustomAutocompleteType, index) => (
                                 <div
                                     key={index}
                                     onClick={this.onSuggestionClick(suggestion)}
-                                    style={{
-                                        ...suggestionItem,
-                                        ...(suggestion.active && { ...active }),
-                                        // @ts-ignore
-                                        '&:hover': hover,
-                                        ...suggestionStyle,
-                                    }}
+                                    className={`suggestionItem ${
+                                        suggestion.active ? 'active' : ''
+                                    }`}
+                                    style={suggestionStyle}
                                 >
+                                    {pinIcon && <img src={PIN_IMAGE_URL} />}
                                     <span>{suggestion.description}</span>
                                 </div>
                             ),
                         )}
                     </div>
                 ) : null}
+                <style jsx>{styles}</style>
             </div>
         );
     }
