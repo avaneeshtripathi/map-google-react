@@ -127,6 +127,7 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
     handleDownKey = () => {
         const { suggestions } = this.state;
         if (!suggestions.length) return;
+
         const activeSuggestionIndex = this.getActiveSuggestionIndex();
         this.selectActiveAtIndex(
             typeof activeSuggestionIndex === 'undefined' ||
@@ -159,13 +160,13 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
                 ...suggestion,
                 active: index === selected,
             })),
-            inputValue: suggestions[selected].description,
+            // inputValue: suggestions[selected].description,
         }));
     };
 
     getActiveSuggestionIndex = () => {
         // @ts-ignore
-        this.state.suggestions.findIndex(suggestion => suggestion.active);
+        return this.state.suggestions.findIndex(suggestion => suggestion.active);
     };
 
     onSuggestionClick = (suggestion: CustomAutocompleteType) => () =>
@@ -182,8 +183,8 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
     render() {
         const {
             placeholder,
-            inputStyle = {},
-            suggestionStyle = {},
+            inputStyles = {},
+            suggestionStyles = {},
             markerIconUrl = Config.pinImageUrl,
         } = this.props;
         const { suggestions, inputValue } = this.state;
@@ -195,7 +196,7 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
                     id={Config.searchBoxId}
                     placeholder={placeholder || 'Search location'}
                     className="searchInput"
-                    style={inputStyle}
+                    style={inputStyles}
                     value={inputValue}
                     onChange={this.handleSearch}
                     // @ts-ignore
@@ -203,7 +204,7 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
                     onFocus={this.handleSearch}
                     type="text"
                 />
-                {suggestions && suggestions.length ? (
+                {suggestions?.length ? (
                     <div className="suggestionsCtr">
                         {suggestions.map(
                             (suggestion: CustomAutocompleteType, index) => (
@@ -213,7 +214,7 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
                                     className={`suggestionItem ${
                                         suggestion.active ? 'active' : ''
                                     }`}
-                                    style={suggestionStyle}
+                                    style={suggestionStyles}
                                 >
                                     {!!markerIconUrl && <img src={markerIconUrl} />}
                                     <span>{suggestion.description}</span>

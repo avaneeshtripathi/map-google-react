@@ -1,3 +1,5 @@
+import { CSSProperties } from "react";
+
 export type MapType = google.maps.Map;
 export type PlacesServiceType = google.maps.places.PlacesService;
 export type PlacesServiceStatusType = google.maps.places.PlacesServiceStatus;
@@ -27,11 +29,16 @@ export type GoogleMapProps = {
     placesOptions?: string[];
     searchOptions?: { [key: string]: any };
     position?: { lat: number; lng: number };
-    beforeChange?: () => void;
-    afterChange?: (data?: object) => void;
-    onError?: (error: object) => void;
-    onPlacesChanged?: (coordinates: { [key: string]: number }, callback: (place: string) => void) => void;
     infoWindowLoader?: JSX.Element;
+    suggestionStyles?: CSSProperties;
+    inputStyles?: CSSProperties;
+
+    beforeChange?: () => void;
+    afterChange?: (data?: any) => void;
+    onError?: (error: any) => void;
+    onPlacesChange?: (coordinates: { [key: string]: number }, callback: (place: string) => void) => void;
+    onMapLoad?: () => void;
+    onSearchBoxMount?: () => void;
 };
 
 export type GoogleMapState = {
@@ -48,9 +55,9 @@ export type SearchBoxProps = {
     onPlacesChanged: (place: CustomAutocompleteType) => void;
     placeholder?: string;
     searchOptions?: object;
-    inputStyle?: object;
-    suggestionStyle?: object;
+    inputStyles?: CSSProperties;
     markerIconUrl?: string;
+    suggestionStyles?: CSSProperties;
 };
 
 export type SearchBoxState = {

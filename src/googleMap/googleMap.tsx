@@ -31,8 +31,7 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
         };
 
 
-        if (!props.googleMapUrl && props.onError)
-            props.onError({ error: 'Google Map URL is required.' });
+        if (!props.googleMapUrl) props.onError?.({ error: 'Google Map URL is required.' });
     }
 
     isComponentMounted?: boolean = true;
@@ -123,6 +122,7 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
                 marker: position ? { position } : null,
             }),
             () => {
+                this.searchInput?.handleState?.({ suggestions: [] });
                 this.handleMarker(position.lat, position.lng, true);
             },
         );
@@ -139,8 +139,8 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
 
     handleMarker = (lat: number, lng: number, setInput?: boolean) => {
         this.setMarker(lat, lng);
-        if (this.props.onPlacesChanged) {
-            this.props.onPlacesChanged({ lat, lng }, (place: string) => {
+        if (this.props.onPlacesChange) {
+            this.props.onPlacesChange({ lat, lng }, (place: string) => {
                 const [location, ...rest] = place.split(' - ');
                 this.setInfoWindow(location, rest.join(' - '));
                 if (setInput && this.searchInput)
@@ -194,7 +194,7 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
             request['fields'] = this.props.placesOptions;
 
         if (
-            !this.props.onPlacesChanged &&
+            !this.props.onPlacesChange &&
             request['fields'] &&
             !request['fields'].includes('formatted_address')
         )
@@ -223,7 +223,7 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
                     marker: position ? { position } : null,
                 }),
                 () => {
-                    if (this.props.onPlacesChanged) {
+                    if (this.props.onPlacesChange) {
                         this.handleMarker(position.lat(), position.lng());
                     } else {
                         const [
@@ -290,7 +290,7 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
 
     render() {
         const { scriptLoaded } = this.state;
-        const { searchPlaceholder, searchOptions } = this.props;
+        const { searchPlaceholder, searchOptions, suggestionStyles, inputStyles } = this.props;
 
         return (
             <div className="ctr">
@@ -302,6 +302,8 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
                         placeholder={searchPlaceholder}
                         onPlacesChanged={this.onPlacesChanged}
                         searchOptions={searchOptions}
+                        suggestionStyles={suggestionStyles}
+                        inputStyles={inputStyles}
                     />
                 ) : null}
             </div>
