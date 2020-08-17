@@ -1,59 +1,47 @@
-import React from 'react';
-import ReactDOMServer from 'react-dom/server';
+import * as React from 'react';
+import * as ReactDOMServer from 'react-dom/server';
 import SearchBox from '../searchBox/searchBox';
-import styles from './googleMapStyles';
 import {
+    CustomAutocompleteType,
+    GeocoderResultType,
+    GeocoderType,
     GoogleMapProps,
     GoogleMapState,
-    MapType,
-    PlacesServiceType,
-    PlaceResultType,
-    CustomAutocompleteType,
-    MarkerType,
     InfoWindowType,
     LatLngType,
-    GeocoderType,
-    GeocoderResultType,
+    MapType,
+    MarkerType,
+    PlaceResultType,
+    PlacesServiceType
 } from '../types/googleMapTypes';
-
-const MAP_ID = `map-google-react-${Math.random()}`;
-const SEARCH_BOX_ID = `map-google-react-search-${Math.random()}`;
-const DEFAULT_ZOOM = 14;
-const DEFAULT_CENTER = { lat: 40.7115388, lng: -74.0109276 };
-
-const INFO_WINDOW = `
-    <div style="display: flex; flex-direction: column; justify-content: center; font-size: 0.918rem; min-height: 28px;">
-        <b>mainText</b>
-        secondaryText
-    </div>
-`;
+import Config from '../utils/config';
+import './googleMapStyles.scss';
 
 class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
     constructor(props: GoogleMapProps) {
         super(props);
-        const { defaultCenter, position } = props;
-        const center = defaultCenter || DEFAULT_CENTER;
+        const { defaultCenter = Config.defaultCenter, position } = props;
 
         this.state = {
             scriptLoaded: false,
-            defaultCenter: center,
-            center: position ? position : center,
+            defaultCenter,
+            center: position || defaultCenter,
+            // @ts-ignore
             marker: position ? { position: position } : null,
         };
+
+
+        if (!props.googleMapUrl && props.onError)
+            props.onError({ error: 'Google Map URL is required.' });
     }
 
-    isMounted?: boolean = true;
+    isComponentMounted?: boolean = true;
     searchInput?: SearchBox;
     map?: MapType;
     placesService?: PlacesServiceType;
     markerService?: MarkerType;
     geocoderService?: GeocoderType;
     infoWindow?: InfoWindowType;
-
-    componentWillMount() {
-        if (!this.props.googleMapUrl && this.props.onError)
-            this.props.onError({ error: 'Google Map URL is required.' });
-    }
 
     componentDidMount() {
         const scriptjs = require(`scriptjs`);
@@ -62,12 +50,13 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
     }
 
     componentWillUnmount() {
-        this.isMounted = false;
+        this.isComponentMounted = false;
     }
 
     onScriptLoad = () =>
-        this.initialise(() => {
-            if (!this.isMounted) return;
+        this.initialize(() => {
+            console.log(this)
+            if (!this.isComponentMounted) return;
 
             this.setState({ scriptLoaded: true });
             const { marker } = this.state;
@@ -85,14 +74,17 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
                 );
         });
 
-    // INITIALISATION
-    initialise = (cb: () => void) => {
+    // INITIALIZATION
+    initialize = (callback: () => void) => {
         const { center } = this.state;
-        const { defaultZoom } = this.props;
+        const { defaultZoom = Config.defaultZoom } = this.props;
 
-        // INITIALISE GOOGLE MAPS
-        this.map = new google.maps.Map(document.getElementById(MAP_ID), {
-            zoom: defaultZoom || DEFAULT_ZOOM,
+        const mapElement = document.getElementById(Config.mapId);
+        if (!mapElement) return;
+
+        // INITIALIZE GOOGLE MAPS
+        this.map = new google.maps.Map(mapElement, {
+            zoom: defaultZoom,
             center,
             mapTypeId: google.maps.MapTypeId.ROADMAP,
             mapTypeControl: false,
@@ -104,10 +96,10 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
             clickableIcons: false,
         });
 
-        // INITIALISE PLACES SERVICE
+        // INITIALIZE PLACES SERVICE
         this.placesService = new google.maps.places.PlacesService(this.map);
 
-        // INITIALISE GEOCODER SERVICE
+        // INITIALIZE GEOCODER SERVICE
         this.geocoderService = new google.maps.Geocoder();
 
         // ADD LISTENER TO MAP TO PIN LOCATION DIRECTLY
@@ -115,7 +107,7 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
             this.handleMapClick(event),
         );
 
-        if (cb) cb();
+        if (callback) callback();
     };
 
     handleMapClick = ({ latLng }: { latLng: LatLngType }) => {
@@ -125,6 +117,7 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
         const position = { lat: latLng.lat(), lng: latLng.lng() };
 
         this.setState(
+            // @ts-ignore
             prevState => ({
                 center: position ? position : prevState.center,
                 marker: position ? { position } : null,
@@ -206,9 +199,10 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
             !request['fields'].includes('formatted_address')
         )
             request['fields'].push('formatted_address');
-
+            
+        // @ts-ignore
         this.placesService.getDetails(request, (result: PlaceResultType) => {
-            if (!this.isMounted) return;
+            if (!this.isComponentMounted) return;
 
             if (!result) {
                 if (this.props.onError)
@@ -219,9 +213,11 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
                 return;
             }
 
+            // @ts-ignore
             const position = result.geometry.location;
 
             this.setState(
+                // @ts-ignore
                 prevState => ({
                     center: position ? position : prevState.center,
                     marker: position ? { position } : null,
@@ -233,6 +229,7 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
                         const [
                             location,
                             ...rest
+                            // @ts-ignore
                         ] = result.formatted_address.split(' - ');
                         this.setMarker(position.lat(), position.lng());
                         this.setInfoWindow(location, rest.join(' - '));
@@ -277,7 +274,8 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
 
     // CREATE INFO WINDOW FOR THE PIN LOCATION
     setInfoWindow = (name: string, area: string) => {
-        const contentString = INFO_WINDOW.replace('mainText', name).replace(
+        const { infoWindow = Config.defaultInfoWindow } = this.props;
+        const contentString = infoWindow.replace('mainText', name).replace(
             'secondaryText',
             area,
         );
@@ -296,17 +294,16 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
 
         return (
             <div className="ctr">
-                <div className="mapCtr" id={MAP_ID} />
+                <div className="mapCtr" id={Config.mapId} />
                 {scriptLoaded ? (
                     <SearchBox
-                        elementId={SEARCH_BOX_ID}
+                        // @ts-ignore
                         ref={ref => (this.searchInput = ref)}
                         placeholder={searchPlaceholder}
                         onPlacesChanged={this.onPlacesChanged}
                         searchOptions={searchOptions}
                     />
                 ) : null}
-                <style jsx>{styles}</style>
             </div>
         );
     }

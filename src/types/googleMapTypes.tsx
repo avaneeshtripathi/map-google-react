@@ -22,6 +22,7 @@ export type GoogleMapProps = {
     defaultCenter?: { lat: number; lng: number };
     searchPlaceholder?: string;
     defaultZoom?: number;
+    infoWindow?: string;
     markerIconUrl?: string;
     placesOptions?: string[];
     searchOptions?: { [key: string]: any };
@@ -44,7 +45,6 @@ export type GoogleMapState = {
 // SEARCH BOX TYPES
 export type SearchBoxProps = {
     onMount?: () => void;
-    elementId: string;
     onPlacesChanged: (place: CustomAutocompleteType) => void;
     placeholder?: string;
     searchOptions?: object;
