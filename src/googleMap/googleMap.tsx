@@ -1,46 +1,63 @@
 import * as React from 'react';
 import * as ReactDOMServer from 'react-dom/server';
 import SearchBox from '../searchBox/searchBox';
-import {
-    CustomAutocompleteType,
-    GeocoderResultType,
-    GeocoderType,
-    GoogleMapProps,
-    GoogleMapState,
-    InfoWindowType,
-    LatLngType,
-    MapType,
-    MarkerType,
-    PlaceResultType,
-    PlacesServiceType
-} from '../types/googleMapTypes';
 import Config from '../utils/config';
 import './googleMapStyles.scss';
+
+export type TCustomLatLng = {
+    lat: number;
+    lng: number;
+};
+
+export type GoogleMapProps = {
+    googleMapUrl: string;
+    defaultCenter?: { lat: number; lng: number };
+    searchPlaceholder?: string;
+    defaultZoom?: number;
+    infoWindow?: string;
+    markerIconUrl?: string;
+    placesOptions?: string[];
+    searchOptions?: any;
+    defaultMarker?: { lat: number; lng: number };
+    infoWindowLoader?: JSX.Element;
+    suggestionStyles?: React.CSSProperties;
+    inputStyles?: React.CSSProperties;
+
+    beforeChange?: () => void;
+    afterChange?: (data?: any) => void;
+    onError?: (error: any) => void;
+    onPlacesChange?: (coordinates: { [key: string]: number }, callback: (place: string) => void) => void;
+};
+
+export type GoogleMapState = {
+    scriptLoaded: boolean;
+    center: TCustomLatLng;
+    defaultCenter: TCustomLatLng;
+    marker?: { position: TCustomLatLng },
+};
 
 class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
     constructor(props: GoogleMapProps) {
         super(props);
-        const { defaultCenter = Config.defaultCenter, position } = props;
+        const { defaultCenter = Config.defaultCenter, defaultMarker } = props;
 
         this.state = {
             scriptLoaded: false,
             defaultCenter,
-            center: position || defaultCenter,
-            // @ts-ignore
-            marker: position ? { position: position } : null,
+            center: defaultMarker || defaultCenter,
+            marker: defaultMarker ? { position: defaultMarker } : undefined,
         };
-
 
         if (!props.googleMapUrl) props.onError?.({ error: 'Google Map URL is required.' });
     }
 
     isComponentMounted?: boolean = true;
-    searchInput?: SearchBox;
-    map?: MapType;
-    placesService?: PlacesServiceType;
-    markerService?: MarkerType;
-    geocoderService?: GeocoderType;
-    infoWindow?: InfoWindowType;
+    searchInput: SearchBox | null = null;
+    map?: google.maps.Map<HTMLElement>;
+    placesService?: google.maps.places.PlacesService;
+    geocoderService?: google.maps.Geocoder;
+    markerService?: google.maps.Marker;
+    infoWindow?: google.maps.InfoWindow;
 
     componentDidMount() {
         const scriptjs = require(`scriptjs`);
@@ -52,29 +69,24 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
         this.isComponentMounted = false;
     }
 
-    onScriptLoad = () =>
-        this.initialize(() => {
-            console.log(this)
+    onScriptLoad = () => {
+        this.initializeMap(() => {
             if (!this.isComponentMounted) return;
 
             this.setState({ scriptLoaded: true });
             const { marker } = this.state;
 
-            if (
-                marker &&
-                marker.position &&
-                typeof marker.position.lat === 'number' &&
-                typeof marker.position.lng === 'number'
-            )
-                this.handleMarker(
-                    marker.position.lat,
-                    marker.position.lng,
-                    true,
-                );
+            if (marker?.position) {
+                this.handleMarker({
+                    ...marker.position,
+                    setInput: true
+                });
+            }
         });
+    }
 
     // INITIALIZATION
-    initialize = (callback: () => void) => {
+    initializeMap = (afterInitialize: () => void) => {
         const { center } = this.state;
         const { defaultZoom = Config.defaultZoom } = this.props;
 
@@ -102,139 +114,123 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
         this.geocoderService = new google.maps.Geocoder();
 
         // ADD LISTENER TO MAP TO PIN LOCATION DIRECTLY
-        google.maps.event.addListener(this.map, 'click', (event: any) =>
+        google.maps.event.addListener(this.map, 'click', (event) =>
             this.handleMapClick(event),
         );
 
-        if (callback) callback();
+        afterInitialize();
     };
 
-    handleMapClick = ({ latLng }: { latLng: LatLngType }) => {
-        // HOOK BEFORE CHANGE STARTS (TO MAKE CONFIRM BTN DISABLED AND ALL)
-        if (this.props.beforeChange) this.props.beforeChange();
+    handleMapClick = ({ latLng }: { latLng: google.maps.LatLng }) => {
+        // HOOK BEFORE CHANGE STARTS (TO MAKE CONFIRM BTN DISABLED OR ANYTHING ELSE)
+        this.props.beforeChange?.();
 
         const position = { lat: latLng.lat(), lng: latLng.lng() };
 
-        this.setState(
-            // @ts-ignore
-            prevState => ({
-                center: position ? position : prevState.center,
-                marker: position ? { position } : null,
-            }),
-            () => {
-                this.searchInput?.handleState?.({ suggestions: [] });
-                this.handleMarker(position.lat, position.lng, true);
-            },
-        );
+        this.setState({
+            center: position,
+            marker: { position }
+        }, () => {
+            this.searchInput?.handleState?.({ suggestions: [] });
+            this.handleMarker({ ...position, setInput: true });
+        });
     };
 
     setSearchInput = (inputValue: string) => {
-        if (this.searchInput) {
-            this.searchInput.handleState({
-                inputValue,
-                suggestions: [],
-            });
-        }
+        this.searchInput?.handleState?.({
+            inputValue,
+            suggestions: [],
+        });
     };
 
-    handleMarker = (lat: number, lng: number, setInput?: boolean) => {
-        this.setMarker(lat, lng);
+    handleMarker = ({ lat, lng, setInput = false }: { lat: number, lng: number, setInput?: boolean }) => {
+        this.setMarker({ lat, lng });
         if (this.props.onPlacesChange) {
             this.props.onPlacesChange({ lat, lng }, (place: string) => {
                 const [location, ...rest] = place.split(' - ');
                 this.setInfoWindow(location, rest.join(' - '));
-                if (setInput && this.searchInput)
-                    this.searchInput.handleState({ inputValue: place });
-                if (this.props.afterChange) this.props.afterChange();
+                if (setInput) {
+                    this.searchInput?.handleState?.({ inputValue: place });
+                }
+
+                this.props.afterChange?.();
             });
         } else {
-            this.fetchDetailsFromCoordinates(lat, lng);
+            this.fetchDetailsFromCoordinates({ lat, lng });
         }
     };
 
-    fetchDetailsFromCoordinates = (lat: number, lng: number) => {
+    fetchDetailsFromCoordinates = (location: TCustomLatLng) => {
         if (!this.geocoderService) return;
 
-        const request = { location: { lat, lng } };
         this.geocoderService.geocode(
-            request,
-            (result: GeocoderResultType[]) => {
-                if (!result || !result[0]) {
-                    if (this.props.onError)
-                        this.props.onError({
-                            error:
-                                'Failed to fetch the details of the coordinates.',
-                        });
+            { location },
+            (result: google.maps.GeocoderResult[]) => {
+                if (!result?.[0]) {
+                    this.props.onError?.({ error: 'Failed to fetch the details for coordinates.' });
                     return;
                 }
 
-                const [location, ...rest] = result[0].formatted_address.split(
-                    ' - ',
-                );
+                const [location, ...rest] = result[0].formatted_address.split(' - ');
                 this.setInfoWindow(location, rest.join(' - '));
-                if (this.searchInput)
-                    this.searchInput.handleState({
-                        inputValue: result[0].formatted_address,
-                    });
-                if (this.props.afterChange) this.props.afterChange(result[0]);
+                this.searchInput?.handleState?.({
+                    inputValue: result[0].formatted_address,
+                });
+                this.props.afterChange?.(result[0]);
             },
         );
     };
 
-    onPlacesChanged = (place: CustomAutocompleteType) => {
+    onPlacesChanged = (place: google.maps.places.AutocompletePrediction) => {
         if (!this.placesService) return;
 
-        // HOOK BEFORE CHANGE STARTS (TO MAKE CONFIRM BTN DISABLED AND ALL)
-        if (this.props.beforeChange) this.props.beforeChange();
+        const { beforeChange, placesOptions = [], onPlacesChange, onError } = this.props;
 
-        const request = { placeId: place.placeId };
+        // Callback before CHANGE STARTS (TO MAKE CONFIRM BTN DISABLED AND ALL)
+        beforeChange?.();
 
-        // IF FIELDS ARE PROVIDED TO FILTER DETAILS DATA
-        if (this.props.placesOptions)
-            request['fields'] = this.props.placesOptions;
+        const request = {
+            placeId: place.place_id,
+            fields: placesOptions,
+        };
 
-        if (
-            !this.props.onPlacesChange &&
-            request['fields'] &&
-            !request['fields'].includes('formatted_address')
-        )
-            request['fields'].push('formatted_address');
-            
-        // @ts-ignore
-        this.placesService.getDetails(request, (result: PlaceResultType) => {
+        if (!onPlacesChange && !request.fields.includes('formatted_address')) {
+            request.fields.push('formatted_address');
+        }
+
+        if (!request.fields.includes('geometry')) {
+            request.fields.push('geometry');
+        }
+
+        this.placesService.getDetails(request, (result: google.maps.places.PlaceResult) => {
             if (!this.isComponentMounted) return;
 
             if (!result) {
-                if (this.props.onError)
-                    this.props.onError({
-                        error:
-                            'Failed to fetch the details of the coordinates.',
-                    });
+                onError?.({
+                    error: 'Failed to fetch the details for coordinates.',
+                });
                 return;
             }
 
-            // @ts-ignore
-            const position = result.geometry.location;
+            if (!result?.geometry?.location) return;
+            const position = { lat: result.geometry.location.lat(), lng: result.geometry.location.lng() };
 
             this.setState(
-                // @ts-ignore
                 prevState => ({
-                    center: position ? position : prevState.center,
-                    marker: position ? { position } : null,
+                    center: position || prevState.center,
+                    marker: position ? { position } : undefined,
                 }),
                 () => {
                     if (this.props.onPlacesChange) {
-                        this.handleMarker(position.lat(), position.lng());
+                        this.handleMarker(position);
                     } else {
                         const [
                             location,
                             ...rest
-                            // @ts-ignore
-                        ] = result.formatted_address.split(' - ');
-                        this.setMarker(position.lat(), position.lng());
+                        ] = (result?.formatted_address || '')?.split?.(' - ');
+                        this.setMarker(position);
                         this.setInfoWindow(location, rest.join(' - '));
-                        if (this.props.afterChange)
-                            this.props.afterChange(result);
+                        this.props.afterChange?.(result);
                     }
                 },
             );
@@ -243,37 +239,41 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
 
     callbackAfterPlacesChanged = (place: string, setInput?: boolean) => {
         if (setInput) this.setSearchInput(place);
-        if (this.props.afterChange) this.props.afterChange();
+
+        this.props.afterChange?.();
         const [location, ...rest] = place.split(' - ');
         this.setInfoWindow(location, rest.join(' - '));
     };
 
-    setMarker = (latitude: number, longitude: number) => {
-        // RESET MARKER IF ALREADY PRESENT
-        if (this.markerService && this.markerService.setMap)
-            this.markerService.setMap(null);
+    setMarker = ({ lat, lng }: TCustomLatLng) => {
+        if (!this.map) return;
 
-        const center = new google.maps.LatLng(latitude, longitude);
+        // RESET MARKER IF ALREADY PRESENT
+        this.markerService?.setMap?.(null);
+
+        const { markerIconUrl, infoWindowLoader } = this.props;
+        const markerPosition = new google.maps.LatLng(lat, lng);
 
         const markerProps = {
-            position: center,
+            position: markerPosition,
             map: this.map,
+            ...(markerIconUrl ? { icon: markerIconUrl } : {})
         };
-        if (this.props.markerIconUrl)
-            markerProps['icon'] = this.props.markerIconUrl;
         this.markerService = new google.maps.Marker(markerProps);
 
-        const infoWindowContent = this.props.infoWindowLoader
-            ? ReactDOMServer.renderToString(this.props.infoWindowLoader)
+        const infoWindowContent = infoWindowLoader
+            ? ReactDOMServer.renderToString(infoWindowLoader)
             : '<div style="text-align: center;">...</div>';
         this.setInfoWindow('', infoWindowContent);
 
         // RE CENTER MAP ACCORDING TO PINNED LOCATION
-        if (this.map) this.map.panTo(center);
+        this.map.panTo(markerPosition);
     };
 
     // CREATE INFO WINDOW FOR THE PIN LOCATION
     setInfoWindow = (name: string, area: string) => {
+        if (!this.map || !this.markerService) return;
+
         const { infoWindow = Config.defaultInfoWindow } = this.props;
         const contentString = infoWindow.replace('mainText', name).replace(
             'secondaryText',
@@ -281,10 +281,9 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
         );
 
         // CLOSE THE INFO WINDOW IF ALREADY THERE
-        if (this.infoWindow) this.infoWindow.close();
-        this.infoWindow = new google.maps.InfoWindow({
-            content: contentString,
-        });
+        this.infoWindow?.close();
+
+        this.infoWindow = new google.maps.InfoWindow({ content: contentString });
         this.infoWindow.open(this.map, this.markerService);
     };
 
@@ -297,7 +296,6 @@ class GoogleMap extends React.Component<GoogleMapProps, GoogleMapState> {
                 <div className="mapCtr" id={Config.mapId} />
                 {scriptLoaded ? (
                     <SearchBox
-                        // @ts-ignore
                         ref={ref => (this.searchInput = ref)}
                         placeholder={searchPlaceholder}
                         onPlacesChanged={this.onPlacesChanged}
