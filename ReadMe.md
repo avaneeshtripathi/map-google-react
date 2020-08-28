@@ -1,7 +1,7 @@
 # map-google-react
 
-A highly customizable google map component which exposes complete customization options. It uses Google's Places API for Autocomplete options and fetching the details of a location. It also uses the Geococoder API get the details of a coordinate. 
-`SearchBox` component is exported which can be sued as a child of `GoogleMap` component separately to make it customizable and controllable separately.
+A highly customizable `Google Map` component which exposes complete customization options. It uses Google's `Places API` for Autocomplete options and fetching the details of a location. It also uses the `Geococoder API` to get the details of a coordinate. 
+`SearchBox` component is exported which can be used as a child of `GoogleMap` component to make it customizable and controllable separately.
 
 ## Installation
 
