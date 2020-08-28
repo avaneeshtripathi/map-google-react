@@ -18,8 +18,8 @@ export default {
   plugins: [
     sass({ insert: true }),
     typescript({ objectHashIgnoreUnknownHack: false }),
-    // cleanup(),
-    // terser(),
+    cleanup(),
+    terser(),
     bundleSize(),
   ],
   external: ['react', 'react-dom']
