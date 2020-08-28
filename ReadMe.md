@@ -53,13 +53,6 @@ import { GoogleMap, SearchBox } from 'map-google-react';
 | afterChange |    (data: { lat: number, lng: number, place: string }) => void |  -  | Gets called once map is finished updating and returns the final lat, lng and the location text |
 | onError |    (error: any) => void |  -  | Gets called an error is ocurred |
 
-
-
-    placeholder?: string;
-    inputStyles?: React.CSSProperties;
-    suggestionStyles?: React.CSSProperties;
-    searchOptions?: google.maps.places.AutocompletionRequest;
-
 ### SearchBox
 
 |     Prop     |       Type      | Default |             Description               |

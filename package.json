@@ -1,6 +1,6 @@
 {
     "name": "map-google-react",
-    "version": "1.1.7",
+    "version": "2.0.0",
     "author": "Avaneesh Tripathi",
     "main": "dist/index.js",
     "files": [
