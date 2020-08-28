@@ -3,8 +3,8 @@ export default {
     searchBoxId: 'map-google-react-search-box',
     defaultZoom: 14,
     defaultCenter: {
-        lat: 40.7115388,
-        lng: -74.0109276
+        lat: 26.850000,
+        lng: 80.949997
     },
     pinImageUrl: 'https://maps.gstatic.com/mapfiles/api-3/images/spotlight-poi2_hdpi.png',
     defaultInfoWindow: `

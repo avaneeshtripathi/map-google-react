@@ -1,3 +1,3 @@
-import GoogleMap from './googleMap/googleMap';
+export * from './googleMap/googleMap';
+export * from './searchBox/searchBox';
 
-export default GoogleMap;

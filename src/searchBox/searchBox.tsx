@@ -2,194 +2,189 @@ import * as React from 'react';
 import Config from '../utils/config';
 import './searchBoxStyles.scss';
 
-export type SearchBoxProps = {
-    onPlacesChanged: (place: google.maps.places.AutocompletePrediction) => void;
-    placeholder?: string;
-    searchOptions?: google.maps.places.AutocompletionRequest;
-    inputStyles?: React.CSSProperties;
-    markerIconUrl?: string;
-    suggestionStyles?: React.CSSProperties;
-};
-
-export type SearchBoxState = {
-    inputValue: string;
+export type TSearchBoxData = {
     suggestions: google.maps.places.AutocompletePrediction[];
+    inputValue: string;
     activeIndex?: number;
 };
 
-class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
-    state: SearchBoxState = {
-        suggestions: [],
-        activeIndex: undefined,
-        inputValue: '',
-    };
+export type TSearchBox = {
+    /* Exposed props */
+    placeholder?: string;
+    inputStyles?: React.CSSProperties;
+    suggestionStyles?: React.CSSProperties;
+    searchOptions?: google.maps.places.AutocompletionRequest;
 
-    autocompleteService?: google.maps.places.AutocompleteService;
-    isComponentMounted = true;
+    /* Internal props */
+    markerIconUrl?: string;
+    onSelectLocation: (place: google.maps.places.AutocompletePrediction) => void;
+    searchBoxData: TSearchBoxData,
+    setSearchBoxData: (value: TSearchBoxData) => void,
+};
 
-    componentDidMount() {
-        this.autocompleteService = new google.maps.places.AutocompleteService();
-    }
+export function SearchBox (props: TSearchBox) {
+    /* Component Props */
+    const {
+        onSelectLocation,
+        placeholder = 'Search location',
+        markerIconUrl = Config.pinImageUrl,
+        searchOptions = {},
+        inputStyles = {},
+        suggestionStyles = {},
+        searchBoxData,
+        setSearchBoxData,
+    } = props;
 
-    componentWillUnmount() {
-        this.isComponentMounted = false;
-    }
+    /* Non state variables. These shouldn't change on render. */
+    const isMounted = React.useRef(true);
+    const autocompleteService = React.useRef(new google.maps.places.AutocompleteService());
 
-    handleState = (state: object) => {
-        if (!this.isComponentMounted) return;
+    /* Effect to clean any pending state changes on component unmount */
+    React.useEffect(() => {
+        return () => {
+            isMounted.current = false;
+        };
+    }, []);
 
-        this.setState(state);
-    };
+    /* Function methods */
+    const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (!isMounted.current) return;
 
-    handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (!this.isComponentMounted) return;
+        const inputValue = event.target.value ?? '';
+        const data = {
+            suggestions: inputValue ? searchBoxData.suggestions : [],
+            activeIndex: undefined,
+            inputValue
+        };
+        setSearchBoxData(data);
 
-        const inputValue = event.target.value || '';
-        this.setState(({ suggestions }) => ({
-            inputValue,
-            suggestions: inputValue ? suggestions : [],
-        }));
-        if (this.autocompleteService && inputValue) {
-            const { searchOptions = {} } = this.props;
+        if (!autocompleteService.current || !inputValue) return;
 
-            this.autocompleteService.getPlacePredictions(
-                { ...searchOptions, input: inputValue },
-                this.autocompleteCallback,
-            );
-        }
-    };
-
-    autocompleteCallback = (
-        suggestions: google.maps.places.AutocompletePrediction[],
-        status: google.maps.places.PlacesServiceStatus,
-    ) => {
-        if (!this.isComponentMounted) return;
-
-        if (status !== google.maps.places.PlacesServiceStatus.OK) {
-            this.clearSuggestions();
-            return;
-        }
+        autocompleteService.current.getPlacePredictions(
+            { ...searchOptions, input: inputValue },
+            (
+                suggestions: google.maps.places.AutocompletePrediction[],
+                status: google.maps.places.PlacesServiceStatus,
+            ) => {
+                if (!isMounted.current) return;
         
-        this.setState({ suggestions });
+                setSearchBoxData({
+                    ...data,
+                    suggestions: status === google.maps.places.PlacesServiceStatus.OK ? suggestions : [],
+                });
+            },
+        );
     };
 
-    clearSuggestions = () => {
-        if (!this.isComponentMounted) return;
-
-        this.setState({ suggestions: [], activeIndex: undefined });
-    };
-
-    handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         switch (event.key) {
             case 'Enter':
                 event.preventDefault();
-                this.handleEnterKey();
+                handleEnterKey();
                 break;
             case 'ArrowDown':
                 event.preventDefault();
-                this.handleDownKey();
+                handleDownKey();
                 break;
             case 'ArrowUp':
                 event.preventDefault();
-                this.handleUpKey();
+                handleUpKey();
                 break;
             case 'Escape':
-                this.clearSuggestions();
+                if (!isMounted.current) return;
+
+                setSearchBoxData({
+                   suggestions: [],
+                   activeIndex: undefined,
+                   inputValue: '', 
+                });
                 break;
         }
     };
 
-    handleEnterKey = () => {
-        const { inputValue, suggestions, activeIndex } = this.state;
+    const handleDownKey = () => {
+        const { activeIndex, suggestions } = searchBoxData;
+
+        if (!suggestions?.length || !isMounted.current) return;
+
+        const newIndex = (typeof activeIndex === 'undefined' || activeIndex === (suggestions.length - 1)) ? 0 : activeIndex + 1;
         
+        setSearchBoxData({
+            ...searchBoxData,
+            activeIndex: newIndex,
+            inputValue: suggestions[newIndex].description,
+        });
+    };
+
+    const handleUpKey = () => {
+        const { activeIndex, suggestions } = searchBoxData;
+
+        if (!suggestions.length || !isMounted.current) return;
+
+        const newIndex = !activeIndex ? (suggestions.length - 1) : (activeIndex - 1);
+
+        setSearchBoxData({
+            ...searchBoxData,
+            activeIndex: newIndex,
+            inputValue: suggestions[newIndex].description,
+        });
+    };
+
+    const handleEnterKey = () => {   
+        const { activeIndex, suggestions, inputValue } = searchBoxData;
+
         if (typeof activeIndex === 'undefined') {
-            this.selectSuggestion({ description: inputValue } as google.maps.places.AutocompletePrediction); // We use only desc
+             // We use only description text so we pass the input value if nothing available from the places api
+            selectSuggestion({ description: inputValue } as google.maps.places.AutocompletePrediction);
         } else {
-            this.selectSuggestion(suggestions[activeIndex]);
+            selectSuggestion(suggestions[activeIndex]);
         }
     };
 
-    handleDownKey = () => {
-        const { suggestions, activeIndex } = this.state;
-        if (!suggestions.length) return;
+    const selectSuggestion = (place?: google.maps.places.AutocompletePrediction) => {
+        if (!place || !isMounted.current) return;
 
-        this.selectActiveAtIndex(
-            (typeof activeIndex === 'undefined' || activeIndex === (suggestions.length - 1))
-                ? 0 : activeIndex + 1,
-        );
-    };
+        setSearchBoxData({
+            suggestions: [],
+            activeIndex: undefined,
+            inputValue: place?.description,
+        });
+        onSelectLocation(place);
+    };    
 
-    handleUpKey = () => {
-        const { suggestions, activeIndex } = this.state;
-        if (!suggestions.length) return;
-
-        this.selectActiveAtIndex(
-            !activeIndex ? (suggestions.length - 1) : (activeIndex - 1),
-        );
-    };
-
-    selectActiveAtIndex = (selected: number) => {
-        if (!this.isComponentMounted) return;
-
-        this.setState(({ suggestions }) => ({
-            activeIndex: selected,
-            inputValue: suggestions[selected].description,
-        }));
-    };
-
-    selectSuggestion = (place?: google.maps.places.AutocompletePrediction) => {
-        if (!this.isComponentMounted) return;
-        if (!place) return;
-
-        this.setState({ suggestions: [], inputValue: place.description });
-        this.props.onPlacesChanged(place);
-    };
-
-    render() {
-        const {
-            placeholder = 'Search location',
-            inputStyles = {},
-            suggestionStyles = {},
-            markerIconUrl = Config.pinImageUrl,
-        } = this.props;
-        const { suggestions, inputValue, activeIndex } = this.state;
-
-        return (
-            <div className="searchBoxCtr">
-                <input
-                    autoComplete="off"
-                    id={Config.searchBoxId}
-                    placeholder={placeholder}
-                    className="searchInput"
-                    style={inputStyles}
-                    value={inputValue}
-                    onChange={this.handleSearch}
-                    onKeyDown={this.handleInputKeyDown}
-                    onFocus={this.handleSearch}
-                    type="text"
-                />
-                {suggestions?.length ? (
-                    <div className="suggestionsCtr">
-                        {suggestions.map(
-                            (suggestion: google.maps.places.AutocompletePrediction, index) => (
-                                <div
-                                    key={index}
-                                    onClick={() => this.selectSuggestion(suggestion)}
-                                    className={`suggestionItem ${
-                                        index === activeIndex ? 'active' : ''
-                                    }`}
-                                    style={suggestionStyles}
-                                >
-                                    {!!markerIconUrl && <img src={markerIconUrl} />}
-                                    <span>{suggestion.description}</span>
-                                </div>
-                            ),
-                        )}
-                    </div>
-                ) : null}
-            </div>
-        );
-    }
-}
-
-export default SearchBox;
+    return (
+        <div className="searchBoxCtr">
+            <input
+                autoComplete="off"
+                id={Config.searchBoxId}
+                placeholder={placeholder}
+                className="searchInput"
+                style={inputStyles}
+                value={searchBoxData?.inputValue}
+                onChange={handleSearch}
+                onFocus={handleSearch}
+                onKeyDown={handleInputKeyDown}
+                type="text"
+            />
+            {searchBoxData?.suggestions?.length ? (
+                <div className="suggestionsCtr">
+                    {searchBoxData?.suggestions?.map(
+                        (suggestion: google.maps.places.AutocompletePrediction, index) => (
+                            <div
+                                key={index}
+                                onClick={() => selectSuggestion(suggestion)}
+                                className={`suggestionItem ${
+                                    index === searchBoxData?.activeIndex ? 'active' : ''
+                                }`}
+                                style={suggestionStyles}
+                            >
+                                {!!markerIconUrl && <img src={markerIconUrl} />}
+                                <span>{suggestion.description}</span>
+                            </div>
+                        ),
+                    )}
+                </div>
+            ) : null}
+        </div>
+    );
+};
